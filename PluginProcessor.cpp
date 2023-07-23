@@ -87,7 +87,7 @@ void AudioPluginAudioProcessor::changeProgramName (int index, const juce::String
 void AudioPluginAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
     // Use this method as the place to do any pre-playback
-    // initialisation that you need..
+    // initialisation that you need..:-)
     juce::ignoreUnused (sampleRate, samplesPerBlock);
 }
 
@@ -104,7 +104,7 @@ bool AudioPluginAudioProcessor::isBusesLayoutSupported (const BusesLayout& layou
     return true;
   #else
     // This is the place where you check if the layout is supported.
-    // In this template code we only support mono or stereo.
+    // TODO: It only support mono or stereo for now.
     // Some plugin hosts, such as certain GarageBand versions, will only
     // load plugins that support stereo bus layouts.
     if (layouts.getMainOutputChannelSet() != juce::AudioChannelSet::mono()
@@ -139,18 +139,38 @@ void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
         buffer.clear (i, 0, buffer.getNumSamples());
 
-    // This is the place where you'd normally do the guts of your plugin's
-    // audio processing...
+    // the guts of the plugin's audio processing...
+
     // Make sure to reset the state if your inner loop is processing
     // the samples and the outer loop is handling the channels.
     // Alternatively, you can process the samples with the channels
     // interleaved by keeping the same state.
-    for (int channel = 0; channel < totalNumInputChannels; ++channel)
+
+    // for (int channel = 0; channel < totalNumInputChannels; ++channel)
+    // {
+    //     auto* channelData = buffer.getWritePointer (channel);
+    //     juce::ignoreUnused (channelData);
+    //     // ..do something to the data...
+    // }
+ 
+    juce::MidiBuffer processedMidi;
+ 
+    for (const auto metadata : midiMessages)
     {
-        auto* channelData = buffer.getWritePointer (channel);
-        juce::ignoreUnused (channelData);
-        // ..do something to the data...
+        auto message = metadata.getMessage();
+        const auto time = metadata.samplePosition;
+ 
+        if (message.isNoteOn())
+        {
+            message = juce::MidiMessage::noteOn (message.getChannel(),
+                                                 message.getNoteNumber(),
+                                                 (juce::uint8) noteOnVel);
+        }
+ 
+        processedMidi.addEvent (message, time);
     }
+ 
+    midiMessages.swapWith (processedMidi);
 }
 
 //==============================================================================
